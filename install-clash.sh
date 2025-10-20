@@ -42,18 +42,26 @@ CLASH_DIR="/opt/clash"
 mkdir -p "$CLASH_DIR"
 cd "$CLASH_DIR"
 
-echo -e "${YELLOW}⚙️  下载 Clash Premium...${NC}"
+echo -e "${YELLOW}⚙️  下载 Clash Meta（最新版）...${NC}"
 
-# 下载 Clash Premium（支持规则）
-wget -O clash.gz https://github.com/Dreamacro/clash/releases/download/premium/clash-linux-amd64-2023.08.17.gz
+# 使用 Clash Meta（mihomo）- 更活跃的分支
+CLASH_VERSION="v1.18.0"
+wget -O clash.gz "https://github.com/MetaCubeX/mihomo/releases/download/${CLASH_VERSION}/mihomo-linux-amd64-${CLASH_VERSION}.gz"
 
 if [ $? -ne 0 ]; then
-    echo -e "${RED}❌ 下载失败，请检查网络连接${NC}"
-    exit 1
+    echo -e "${YELLOW}⚠️  GitHub 下载失败，尝试使用镜像源...${NC}"
+    # 使用国内镜像
+    wget -O clash.gz "https://ghproxy.com/https://github.com/MetaCubeX/mihomo/releases/download/${CLASH_VERSION}/mihomo-linux-amd64-${CLASH_VERSION}.gz"
+    
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}❌ 下载失败，请检查网络连接${NC}"
+        exit 1
+    fi
 fi
 
 echo -e "${YELLOW}⚙️  解压 Clash...${NC}"
-gunzip clash.gz
+gunzip -f clash.gz
+mv mihomo-linux-amd64-* clash 2>/dev/null || true
 chmod +x clash
 
 echo -e "${GREEN}✅ Clash 下载完成${NC}"
