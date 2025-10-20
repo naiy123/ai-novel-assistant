@@ -53,21 +53,32 @@ SERVER_IP=$(curl -s ifconfig.me)
 echo -e "${GREEN}✅ 检测到服务器 IP：${NC}${SERVER_IP}"
 echo ""
 
-# 询问是否需要 HTTP 代理
-echo -e "${CYAN}❓ 你有 HTTP 代理吗？（用于访问 Google API）${NC}"
-echo -e "${YELLOW}   如果没有，可以先跳过，后续再配置${NC}"
+# 检查是否有本地 Clash 代理
+echo -e "${CYAN}🔍 检测本地代理...${NC}"
 echo ""
-read -p "是否配置代理？(y/n，默认n): " USE_PROXY
-USE_PROXY=${USE_PROXY:-n}
 
-if [[ "$USE_PROXY" =~ ^[Yy]$ ]]; then
-    echo ""
-    echo -e "${CYAN}请输入代理地址（格式: http://host:port）${NC}"
-    echo -e "${YELLOW}例如: http://proxy.example.com:8080${NC}"
-    read -p "代理地址: " HTTP_PROXY_URL
+if curl -s -x http://127.0.0.1:7890 --connect-timeout 3 https://www.google.com > /dev/null 2>&1; then
+    echo -e "${GREEN}✅ 检测到本地 Clash 代理（端口 7890）${NC}"
+    HTTP_PROXY_URL="http://127.0.0.1:7890"
+    echo -e "${GREEN}✅ 将自动使用 Clash 代理访问 Google API${NC}"
 else
-    HTTP_PROXY_URL=""
-    echo -e "${YELLOW}⚠️  跳过代理配置（AI 功能将无法使用，需要后续配置）${NC}"
+    echo -e "${YELLOW}⚠️  未检测到本地代理${NC}"
+    echo ""
+    echo -e "${CYAN}❓ 你有其他 HTTP 代理吗？${NC}"
+    echo -e "${YELLOW}   如果没有，可以先跳过，后续再配置${NC}"
+    echo ""
+    read -p "是否配置代理？(y/n，默认n): " USE_PROXY
+    USE_PROXY=${USE_PROXY:-n}
+    
+    if [[ "$USE_PROXY" =~ ^[Yy]$ ]]; then
+        echo ""
+        echo -e "${CYAN}请输入代理地址（格式: http://host:port）${NC}"
+        echo -e "${YELLOW}例如: http://proxy.example.com:8080${NC}"
+        read -p "代理地址: " HTTP_PROXY_URL
+    else
+        HTTP_PROXY_URL=""
+        echo -e "${YELLOW}⚠️  跳过代理配置（AI 功能将无法使用，需要后续配置）${NC}"
+    fi
 fi
 
 echo ""
