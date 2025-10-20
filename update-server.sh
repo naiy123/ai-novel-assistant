@@ -151,3 +151,7 @@ echo -e "${CYAN}查看服务状态：${NC}pm2 status"
 echo -e "${CYAN}查看后端日志：${NC}pm2 logs ai-novel-backend"
 echo ""
 
+
+
+
+
