@@ -2,27 +2,17 @@
 
 基于 Google Vertex AI 的智能小说创作平台，支持中国用户访问。
 
+---
+
 ## ✨ 核心功能
 
-- 📚 **小说管理**：创建、编辑、管理多部小说
-- 📝 **章节编辑**：Markdown 编辑器，自动保存，实时字数统计
-- 🎴 **卡片库**：管理人物、物品、场景设定
-- 🤖 **AI 辅助**：根据大纲和卡片智能生成内容（500-5000字）
-- 💾 **自动保存**：3秒自动保存，防止内容丢失
+- 📚 **小说管理** - 创建、编辑、管理多部小说
+- 📝 **章节编辑** - Markdown编辑器，自动保存，实时字数统计
+- 🎴 **卡片库** - 管理人物、物品、场景设定
+- 🤖 **AI辅助** - 根据大纲智能生成内容（500-5000字）
+- 💾 **自动保存** - 3秒自动保存，防止内容丢失
 
-## 🏗️ 架构
-
-```
-用户（中国）
-    ↓
-前端网页（可部署在中国）
-    ↓
-后端服务器（需访问 Google API）
-    ↓
-Google Vertex AI
-```
-
-**关键**：只有后端需要访问 Google API（需要海外服务器或代理），前端和用户无需代理。
+---
 
 ## 🚀 快速开始
 
@@ -38,175 +28,214 @@ cd frontend
 npm install
 ```
 
-### 2. 配置 Google Cloud
+### 2. 配置Google Cloud
 
-1. 创建 Google Cloud 项目
-2. 启用 Vertex AI API
-3. 创建服务账号并下载 JSON 密钥
-4. 将密钥保存到 `backend/credentials/google-cloud-key.json`
-
-详见：[Google-Cloud-配置指南.md](./Google-Cloud-配置指南.md)
-
-### 3. 配置环境变量
-
-创建 `backend/.env`：
+1. 访问 [Google Cloud Console](https://console.cloud.google.com/)
+2. 创建项目并启用 Vertex AI API
+3. 下载服务账号密钥到 `backend/credentials/google-cloud-key.json`
+4. 创建 `backend/.env` 文件：
 
 ```env
-# Google Cloud 配置
-GOOGLE_APPLICATION_CREDENTIALS=backend/credentials/google-cloud-key.json
-VERTEX_AI_PROJECT_ID=your-project-id
+GOOGLE_APPLICATION_CREDENTIALS=credentials/google-cloud-key.json
+VERTEX_AI_PROJECT_ID=你的项目ID
 VERTEX_AI_LOCATION=us-central1
-
-# 如果后端在中国，需要配置代理
-# HTTP_PROXY=http://127.0.0.1:7890
-# HTTPS_PROXY=http://127.0.0.1:7890
+PORT=5000
+JWT_SECRET=your-secret-key
 ```
 
-### 4. 启动应用
+**详细配置**：查看 [Google-Cloud-配置指南.md](./Google-Cloud-配置指南.md)
+
+### 3. 启动应用
 
 ```bash
-# 终端 1：启动后端
+# 终端1：启动后端
 cd backend
 npm run dev
 
-# 终端 2：启动前端
+# 终端2：启动前端
 cd frontend
 npm run dev
 ```
 
 访问：http://localhost:3000
 
-**测试账号**：
-- 用户名：`test`
-- 密码：`123456`
+**测试账号**：用户名 `test`，密码 `123456`
 
-## 📚 文档
+---
 
-| 文档 | 说明 |
-|------|------|
-| [README-部署指南.md](./README-部署指南.md) | **部署必读**：架构说明、部署方案、服务器配置 |
-| [使用指南.md](./使用指南.md) | 功能使用、AI 写作、卡片管理 |
-| [Google-Cloud-配置指南.md](./Google-Cloud-配置指南.md) | Google Cloud 详细配置（可选） |
+## 📚 文档导航
 
-## 🎯 推荐部署方案
+| 文档 | 说明 | 阅读时间 |
+|------|------|----------|
+| **[快速开始.md](./快速开始.md)** | 本地开发快速入门 | 5分钟 ⭐ |
+| **[使用指南.md](./使用指南.md)** | 功能使用教程 | 15分钟 |
+| [Google-Cloud-配置指南.md](./Google-Cloud-配置指南.md) | Google Cloud配置 | 10分钟 |
+| [Windows部署说明.md](./Windows部署说明.md) | Windows生产环境部署 | 5分钟 |
+| [管理命令.md](./管理命令.md) | PM2服务管理 | 3分钟 |
 
-### 小团队/个人
+---
 
-**前端**：Vercel / 阿里云 OSS（中国）  
-**后端**：Google Cloud / AWS（海外）  
-**成本**：¥100-150/月
+## 🏗️ 架构说明
 
-### 本地开发
+```
+用户（中国）
+    ↓
+前端网页（可部署在中国）
+    ↓
+后端服务器（需访问Google API）
+    ↓
+Google Vertex AI
+```
 
-**Windows**：使用 `start-with-proxy.ps1` 脚本  
-**需要**：本地代理（Clash/V2Ray），端口 7890
+**关键点**：
+- ✅ 前端可以部署在中国（阿里云、腾讯云等）
+- ✅ 后端需要能访问Google API（海外服务器或使用代理）
+- ✅ 用户无需代理，正常访问前端即可
+
+---
 
 ## 🔧 技术栈
 
-**前端**：
-- React 18
-- Vite
-- React Router
-- Tailwind CSS
+**前端**：React 18 + Vite + React Router + Tailwind CSS  
+**后端**：Node.js 18+ + Express + Google Vertex AI (Gemini)  
+**数据库**：内存数据库（可替换为SQLite/PostgreSQL）
 
-**后端**：
-- Node.js 18+
-- Express
-- Google Vertex AI (Gemini)
-- 内存数据库（可替换为 SQLite/PostgreSQL）
+---
 
-## 💡 核心特性
+## 🛠️ 常用命令
 
-### 1. 智能 AI 生成
+### 开发环境
 
-- 根据剧情大纲生成内容
-- 结合人物/物品/场景卡片
-- 可选字数（500-5000字）
-- 自动保持人物性格一致性
+```bash
+# 启动开发服务器
+npm run dev
 
-### 2. 卡片系统
-
-- **人物卡**：性格、外貌、背景
-- **物品卡**：描述、作用、特性
-- **场景卡**：环境、氛围、特殊信息
-
-### 3. 编辑体验
-
-- Markdown 格式
-- 自动保存（3秒）
-- 实时字数统计
-- 章节快速切换
-
-## 🌐 部署架构
-
-### 推荐方案（生产环境）
-
-```
-┌──────────────────┐
-│   阿里云 CDN     │ ← 前端静态文件（中国用户快速访问）
-└────────┬─────────┘
-         │
-┌────────▼─────────┐
-│  Google Cloud    │ ← 后端 API（美国，直接访问 Vertex AI）
-│  Compute Engine  │
-└────────┬─────────┘
-         │
-┌────────▼─────────┐
-│  Vertex AI API   │
-└──────────────────┘
+# 构建生产版本
+npm run build
 ```
 
-**优点**：
-- ✅ 中国用户访问前端快
-- ✅ 后端无需代理
-- ✅ 稳定可靠
+### Git版本管理
 
-详见：[README-部署指南.md](./README-部署指南.md)
+```bash
+# 使用一键脚本（推荐）
+.\快速推送.bat
 
-## 📊 API 用量
+# 或手动执行
+git add .
+git commit -m "更新说明"
+git push
+```
 
-**Gemini 2.5 Pro 定价**（参考）：
+### PM2服务管理
+
+```bash
+# 查看状态
+pm2 status
+
+# 查看日志
+pm2 logs
+
+# 重启服务
+pm2 restart all
+```
+
+**完整命令**：查看 [管理命令.md](./管理命令.md)
+
+---
+
+## 💡 部署方案
+
+### 本地开发（Windows）
+- 前端：`npm run dev` (端口3000)
+- 后端：`npm run dev` (端口5000)
+- 如需代理：使用 `start-with-proxy.ps1`
+
+### 生产环境（Windows Server）
+- 使用PM2管理服务
+- 前端：端口80
+- 后端：端口5000
+- **详见**：[Windows部署说明.md](./Windows部署说明.md)
+
+### 推荐部署（中国用户）
+- 前端：阿里云OSS / 腾讯云COS
+- 后端：Google Cloud / AWS（海外）
+- 成本：约¥100-150/月
+
+---
+
+## 🆘 常见问题
+
+### Q1：无法连接Google API
+
+**原因**：Google API在中国被墙  
+**解决**：
+- 本地开发：使用 `start-with-proxy.ps1`（需本地代理）
+- 生产环境：将后端部署到海外服务器
+
+### Q2：AI生成失败
+
+**检查步骤**：
+1. 查看后端日志：`pm2 logs ai-novel-backend`
+2. 测试连接：`node backend/test-vertex-ai.js`
+3. 检查Google Cloud配额和密钥
+
+### Q3：前端页面空白
+
+**解决**：
+1. 检查后端是否运行
+2. 检查浏览器控制台错误
+3. 确认API地址配置正确
+
+---
+
+## 📊 AI用量估算
+
+**Gemini 2.5 Pro定价**：
 - 输入：$1.25 / 1M tokens
 - 输出：$5.00 / 1M tokens
 
-**估算**（生成 2000 字）：
-- 输入 token：~1500（提示词）
-- 输出 token：~1000（生成内容）
-- 成本：~$0.007 / 次
+**生成2000字成本**：约$0.007/次
 
-## 🔒 安全
+---
 
-- JWT 认证
-- 密码 bcrypt 加密
-- 服务账号认证（Google Cloud）
-- HTTPS 加密传输（生产环境）
+## 🔒 安全提醒
 
-## 📝 TODO
+- ✅ JWT认证
+- ✅ 密码bcrypt加密
+- ⚠️ 生产环境请修改 `JWT_SECRET`
+- ⚠️ 不要提交 `credentials/*.json` 到Git
+- ⚠️ 建议配置HTTPS
+
+---
+
+## 📝 开发计划
 
 - [ ] 真实数据库（SQLite/PostgreSQL）
 - [ ] 用户注册功能
 - [ ] 导出小说（TXT/EPUB）
 - [ ] 版本历史
 - [ ] 多人协作
-- [ ] 章节排序
+
+---
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交Issue和Pull Request！
+
+---
 
 ## 📄 许可证
 
 MIT License
 
-## 📞 支持
+---
 
-遇到问题？
+## 🎯 下一步
 
-1. 查看 [README-部署指南.md](./README-部署指南.md)
-2. 查看 [使用指南.md](./使用指南.md)
-3. 检查后端日志
-4. 提交 Issue
+1. 阅读 [快速开始.md](./快速开始.md) 了解如何启动项目
+2. 阅读 [使用指南.md](./使用指南.md) 学习如何使用AI辅助写作
+3. 开始创作你的第一部小说 ✍️
 
 ---
 
-**开始创作你的小说吧！✍️**
+**开始你的AI写作之旅吧！🚀**
