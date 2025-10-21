@@ -1,7 +1,7 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import { selectOne, insert } from '../database/memoryDB.js'
+import { selectOne, insert } from '../database/db.js'
 
 const router = express.Router()
 

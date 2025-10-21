@@ -32,7 +32,7 @@ function NovelDetailPage() {
   const [selectedCharacters, setSelectedCharacters] = useState([]) // 选中的人物卡
   const [selectedItems, setSelectedItems] = useState([]) // 选中的物品卡
   const [selectedScene, setSelectedScene] = useState(null) // 选中的背景卡
-  const [targetWords, setTargetWords] = useState(2000) // 目标生成字数
+  const [targetWords, setTargetWords] = useState(1000) // 目标生成字数
   const [generating, setGenerating] = useState(false) // AI 生成状态
   
   // 卡片数据
@@ -40,6 +40,11 @@ function NovelDetailPage() {
   const [items, setItems] = useState([]) // 物品卡列表
   const [scenes, setScenes] = useState([]) // 背景卡列表
   const [cardsLoading, setCardsLoading] = useState(false) // 卡片加载状态
+  
+  // 卡片选择弹窗状态
+  const [showCharacterModal, setShowCharacterModal] = useState(false) // 人物卡选择弹窗
+  const [showItemModal, setShowItemModal] = useState(false) // 物品卡选择弹窗
+  const [showSceneModal, setShowSceneModal] = useState(false) // 场景卡选择弹窗
 
   // 页面加载时获取数据
   useEffect(() => {
@@ -759,12 +764,10 @@ function NovelDetailPage() {
                   onChange={(e) => setTargetWords(parseInt(e.target.value))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm bg-white"
                 >
-                  <option value={500}>短篇（约 500 字）</option>
-                  <option value={1000}>中篇（约 1000 字）</option>
-                  <option value={1500}>较长（约 1500 字）</option>
-                  <option value={2000}>标准（约 2000 字）</option>
-                  <option value={3000}>长篇（约 3000 字）</option>
-                  <option value={5000}>超长（约 5000 字）</option>
+                  <option value={500}>简短（约 500 字）</option>
+                  <option value={1000}>标准（约 1000 字）</option>
+                  <option value={1500}>中等（约 1500 字）</option>
+                  <option value={2000}>较长（约 2000 字）</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
                   AI 将生成约 {targetWords} 字的内容
@@ -776,35 +779,33 @@ function NovelDetailPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   选择人物 <span className="text-gray-400 text-xs">(可多选)</span>
                 </label>
-                {cardsLoading ? (
-                  <p className="text-sm text-gray-500">加载中...</p>
-                ) : characters.length === 0 ? (
-                  <p className="text-sm text-gray-500">还没有人物卡，<button onClick={() => navigate('/cards')} className="text-purple-600 hover:underline">去创建</button></p>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {characters.map(char => (
-                      <label
-                        key={char.id}
-                        className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition ${
-                          selectedCharacters.includes(char.id)
-                            ? 'bg-purple-50 border border-purple-300'
-                            : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedCharacters.includes(char.id)}
-                          onChange={() => toggleCharacter(char.id)}
-                          className="rounded text-purple-600 focus:ring-purple-500"
-                        />
-                        <span className="text-sm font-medium text-gray-800">{char.name}</span>
-                        {char.personality && (
-                          <span className="text-xs text-gray-500 truncate">- {char.personality.substring(0, 20)}</span>
-                        )}
-                      </label>
-                    ))}
+                <button
+                  onClick={() => setShowCharacterModal(true)}
+                  className="w-full px-4 py-3 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">
+                      {selectedCharacters.length > 0 ? (
+                        <span className="font-medium text-purple-600">已选择 {selectedCharacters.length} 个人物</span>
+                      ) : (
+                        <span className="text-gray-500">点击选择人物卡</span>
+                      )}
+                    </span>
+                    <span className="text-purple-600">→</span>
                   </div>
-                )}
+                  {selectedCharacters.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {selectedCharacters.map(charId => {
+                        const char = characters.find(c => c.id === charId)
+                        return char ? (
+                          <span key={charId} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded">
+                            {char.name}
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                </button>
               </div>
 
               {/* 物品卡选择 */}
@@ -812,74 +813,57 @@ function NovelDetailPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   选择物品 <span className="text-gray-400 text-xs">(可多选)</span>
                 </label>
-                {cardsLoading ? (
-                  <p className="text-sm text-gray-500">加载中...</p>
-                ) : items.length === 0 ? (
-                  <p className="text-sm text-gray-500">还没有物品卡，<button onClick={() => navigate('/cards')} className="text-purple-600 hover:underline">去创建</button></p>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {items.map(item => (
-                      <label
-                        key={item.id}
-                        className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition ${
-                          selectedItems.includes(item.id)
-                            ? 'bg-green-50 border border-green-300'
-                            : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedItems.includes(item.id)}
-                          onChange={() => toggleItem(item.id)}
-                          className="rounded text-green-600 focus:ring-green-500"
-                        />
-                        <span className="text-sm font-medium text-gray-800">{item.name}</span>
-                        {item.rarity && (
-                          <span className="text-xs px-1 py-0.5 bg-green-100 text-green-700 rounded">{item.rarity}</span>
-                        )}
-                      </label>
-                    ))}
+                <button
+                  onClick={() => setShowItemModal(true)}
+                  className="w-full px-4 py-3 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">
+                      {selectedItems.length > 0 ? (
+                        <span className="font-medium text-green-600">已选择 {selectedItems.length} 个物品</span>
+                      ) : (
+                        <span className="text-gray-500">点击选择物品卡</span>
+                      )}
+                    </span>
+                    <span className="text-green-600">→</span>
                   </div>
-                )}
+                  {selectedItems.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {selectedItems.map(itemId => {
+                        const item = items.find(i => i.id === itemId)
+                        return item ? (
+                          <span key={itemId} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded">
+                            {item.name}
+                          </span>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                </button>
               </div>
 
-              {/* 背景卡选择 */}
+              {/* 场景卡选择 */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   选择场景 <span className="text-gray-400 text-xs">(单选)</span>
                 </label>
-                {cardsLoading ? (
-                  <p className="text-sm text-gray-500">加载中...</p>
-                ) : scenes.length === 0 ? (
-                  <p className="text-sm text-gray-500">还没有背景卡，<button onClick={() => navigate('/cards')} className="text-purple-600 hover:underline">去创建</button></p>
-                ) : (
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {scenes.map(scene => (
-                      <label
-                        key={scene.id}
-                        className={`flex items-center space-x-2 p-2 rounded-lg cursor-pointer transition ${
-                          selectedScene === scene.id
-                            ? 'bg-indigo-50 border border-indigo-300'
-                            : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="scene"
-                          checked={selectedScene === scene.id}
-                          onChange={() => selectSceneCard(scene.id)}
-                          className="text-indigo-600 focus:ring-indigo-500"
-                        />
-                        <div className="flex-1">
-                          <span className="text-sm font-medium text-gray-800 block">{scene.name}</span>
-                          {scene.atmosphere && (
-                            <span className="text-xs text-gray-500">{scene.atmosphere}</span>
-                          )}
-                        </div>
-                      </label>
-                    ))}
+                <button
+                  onClick={() => setShowSceneModal(true)}
+                  className="w-full px-4 py-3 border-2 border-dashed border-indigo-300 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition text-left"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-700">
+                      {selectedScene ? (
+                        <span className="font-medium text-indigo-600">
+                          {scenes.find(s => s.id === selectedScene)?.name || '已选择场景'}
+                        </span>
+                      ) : (
+                        <span className="text-gray-500">点击选择场景卡</span>
+                      )}
+                    </span>
+                    <span className="text-indigo-600">→</span>
                   </div>
-                )}
+                </button>
               </div>
 
               {/* 提示 */}
@@ -951,6 +935,271 @@ function NovelDetailPage() {
                 className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition"
               >
                 创建并编辑
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 人物卡选择弹窗 */}
+      {showCharacterModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">选择人物卡</h2>
+              <button
+                onClick={() => setShowCharacterModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {cardsLoading ? (
+              <p className="text-center text-gray-500 py-8">加载中...</p>
+            ) : characters.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">还没有人物卡</p>
+                <button
+                  onClick={() => {
+                    setShowCharacterModal(false)
+                    navigate('/cards')
+                  }}
+                  className="text-purple-600 hover:text-purple-700 font-medium"
+                >
+                  去创建 →
+                </button>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {characters.map(char => (
+                  <label
+                    key={char.id}
+                    className={`block p-4 rounded-lg cursor-pointer transition border-2 ${
+                      selectedCharacters.includes(char.id)
+                        ? 'bg-purple-50 border-purple-400'
+                        : 'bg-white border-gray-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedCharacters.includes(char.id)}
+                        onChange={() => toggleCharacter(char.id)}
+                        className="mt-1 rounded text-purple-600 focus:ring-purple-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="font-bold text-gray-800">{char.name}</h3>
+                          {char.age && <span className="text-xs text-gray-500">{char.age}岁</span>}
+                          {char.gender && <span className="text-xs text-gray-500">· {char.gender}</span>}
+                        </div>
+                        {char.personality && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            <span className="font-medium">性格：</span>{char.personality}
+                          </p>
+                        )}
+                        {char.appearance && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            <span className="font-medium">外貌：</span>{char.appearance}
+                          </p>
+                        )}
+                        {char.background && (
+                          <p className="text-sm text-gray-500">
+                            <span className="font-medium">背景：</span>{char.background}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t flex justify-between items-center">
+              <span className="text-sm text-gray-600">
+                已选择 {selectedCharacters.length} 个人物
+              </span>
+              <button
+                onClick={() => setShowCharacterModal(false)}
+                className="px-6 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 物品卡选择弹窗 */}
+      {showItemModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">选择物品卡</h2>
+              <button
+                onClick={() => setShowItemModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {cardsLoading ? (
+              <p className="text-center text-gray-500 py-8">加载中...</p>
+            ) : items.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">还没有物品卡</p>
+                <button
+                  onClick={() => {
+                    setShowItemModal(false)
+                    navigate('/cards')
+                  }}
+                  className="text-green-600 hover:text-green-700 font-medium"
+                >
+                  去创建 →
+                </button>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {items.map(item => (
+                  <label
+                    key={item.id}
+                    className={`block p-4 rounded-lg cursor-pointer transition border-2 ${
+                      selectedItems.includes(item.id)
+                        ? 'bg-green-50 border-green-400'
+                        : 'bg-white border-gray-200 hover:border-green-300'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedItems.includes(item.id)}
+                        onChange={() => toggleItem(item.id)}
+                        className="mt-1 rounded text-green-600 focus:ring-green-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="font-bold text-gray-800">{item.name}</h3>
+                          {item.rarity && (
+                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">
+                              {item.rarity}
+                            </span>
+                          )}
+                        </div>
+                        {item.description && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            <span className="font-medium">描述：</span>{item.description}
+                          </p>
+                        )}
+                        {item.function && (
+                          <p className="text-sm text-gray-500">
+                            <span className="font-medium">作用：</span>{item.function}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t flex justify-between items-center">
+              <span className="text-sm text-gray-600">
+                已选择 {selectedItems.length} 个物品
+              </span>
+              <button
+                onClick={() => setShowItemModal(false)}
+                className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition"
+              >
+                确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 场景卡选择弹窗 */}
+      {showSceneModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">选择场景卡</h2>
+              <button
+                onClick={() => setShowSceneModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {cardsLoading ? (
+              <p className="text-center text-gray-500 py-8">加载中...</p>
+            ) : scenes.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 mb-4">还没有场景卡</p>
+                <button
+                  onClick={() => {
+                    setShowSceneModal(false)
+                    navigate('/cards')
+                  }}
+                  className="text-indigo-600 hover:text-indigo-700 font-medium"
+                >
+                  去创建 →
+                </button>
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-2">
+                {scenes.map(scene => (
+                  <label
+                    key={scene.id}
+                    className={`block p-4 rounded-lg cursor-pointer transition border-2 ${
+                      selectedScene === scene.id
+                        ? 'bg-indigo-50 border-indigo-400'
+                        : 'bg-white border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="radio"
+                        name="scene"
+                        checked={selectedScene === scene.id}
+                        onChange={() => selectSceneCard(scene.id)}
+                        className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <h3 className="font-bold text-gray-800">{scene.name}</h3>
+                          {scene.time_period && (
+                            <span className="text-xs text-gray-500">· {scene.time_period}</span>
+                          )}
+                        </div>
+                        {scene.atmosphere && (
+                          <p className="text-sm text-gray-600 mb-1">
+                            <span className="font-medium">氛围：</span>{scene.atmosphere}
+                          </p>
+                        )}
+                        {scene.description && (
+                          <p className="text-sm text-gray-500">
+                            <span className="font-medium">描述：</span>{scene.description}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 pt-4 border-t flex justify-between items-center">
+              <span className="text-sm text-gray-600">
+                {selectedScene ? '已选择 1 个场景' : '未选择场景'}
+              </span>
+              <button
+                onClick={() => setShowSceneModal(false)}
+                className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition"
+              >
+                确定
               </button>
             </div>
           </div>

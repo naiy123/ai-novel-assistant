@@ -8,7 +8,7 @@ import authRoutes from './routes/auth.js'
 import novelRoutes from './routes/novels.js'
 import cardRoutes from './routes/cards.js'
 import aiRoutes from './routes/ai.js'
-import { initDatabase } from './database/memoryDB.js'
+import { initDatabase } from './database/sqlite.js'
 
 // ES Module 环境下获取 __dirname
 const __filename = fileURLToPath(import.meta.url)

@@ -1,5 +1,5 @@
 import express from 'express'
-import { selectAll, selectOne, insert, update, deleteRecord } from '../database/memoryDB.js'
+import { selectAll, selectOne, insert, update, deleteRecord, query } from '../database/db.js'
 
 const router = express.Router()
 
