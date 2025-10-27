@@ -49,7 +49,7 @@ router.get('/:id', (req, res) => {
  */
 router.post('/', (req, res) => {
   try {
-    const { title, description, genre } = req.body
+    const { title, description } = req.body
     
     if (!title) {
       return res.status(400).json({ error: '小说标题不能为空' })
@@ -60,7 +60,6 @@ router.post('/', (req, res) => {
       user_id: 1,
       title,
       description,
-      genre,
       status: 'writing'
     })
 

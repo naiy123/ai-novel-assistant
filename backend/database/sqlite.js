@@ -173,6 +173,21 @@ export function initDatabase() {
     
     const userId = userResult.lastInsertRowid
     
+    // 创建示例小说
+    const insertNovel = db.prepare(`
+      INSERT INTO novels (user_id, title, description, status)
+      VALUES (?, ?, ?, ?)
+    `)
+    
+    const novelResult = insertNovel.run(
+      userId,
+      '剑与江湖',
+      '一个关于江湖恩怨、武林秘籍的传奇故事。少女林小雨为寻找失踪的祖父，只身闯荡京城，卷入了一场波谲云诡的江湖纷争。',
+      'draft'
+    )
+    
+    const novelId = novelResult.lastInsertRowid
+    
     // 创建示例人物卡
     const insertCharacter = db.prepare(`
       INSERT INTO character_cards (user_id, novel_id, name, age, gender, personality, appearance, background, other_info)
@@ -181,7 +196,7 @@ export function initDatabase() {
     
     insertCharacter.run(
       userId,
-      1,
+      novelId,
       '林小雨',
       18,
       '女',
@@ -199,7 +214,7 @@ export function initDatabase() {
     
     insertItem.run(
       userId,
-      1,
+      novelId,
       '碧玉清心佩',
       '传说',
       '一块温润如水的碧玉，呈椭圆形，约鸡蛋大小。玉佩表面光滑细腻，内部隐约可见流云般的纹理。中央刻着一个古老的"心"字，在月光下会泛出淡淡的青光。',
@@ -215,7 +230,7 @@ export function initDatabase() {
     
     insertScene.run(
       userId,
-      1,
+      novelId,
       '清风阁茶楼',
       '古代京城',
       '茶楼内终年弥漫着淡淡的茶香，混合着檀香的味道。一楼喧闹热闹，能听到各种市井八卦和江湖传闻；二楼相对安静，时而传来琴音或低声交谈；三楼则寂静无声，给人一种神秘莫测的感觉。',
@@ -225,6 +240,7 @@ export function initDatabase() {
     
     console.log('✅ 示例数据创建完成')
     console.log('   - 测试用户: test / 123456')
+    console.log('   - 示例小说：剑与江湖')
     console.log('   - 人物卡：林小雨')
     console.log('   - 物品卡：碧玉清心佩')
     console.log('   - 场景卡：清风阁茶楼')

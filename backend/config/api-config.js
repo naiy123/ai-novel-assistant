@@ -15,6 +15,7 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { getCurrentModel, printCurrentModel } from './model-switcher.js'
 
 // 获取当前文件的目录
 const __filename = fileURLToPath(import.meta.url)
@@ -26,6 +27,10 @@ dotenv.config()
  * Google Vertex AI 配置
  * 文档：https://cloud.google.com/vertex-ai/generative-ai/docs/model-reference/inference
  */
+
+// 动态获取当前选择的模型
+const currentModel = getCurrentModel()
+
 const VERTEX_AI_CONFIG = {
   // 服务名称
   name: 'Google Vertex AI',
@@ -42,13 +47,17 @@ const VERTEX_AI_CONFIG = {
   projectId: process.env.VERTEX_AI_PROJECT_ID || '',
   location: process.env.VERTEX_AI_LOCATION || 'us-central1', // 默认区域
 
-  // 模型配置
+  // 模型配置（从 model-switcher.js 动态加载）
   model: {
     // 模型名称
-    name: 'gemini-2.0-flash-exp',
+    name: currentModel.name,
     
     // 完整的模型路径（用于构建 API 端点）
-    fullPath: 'publishers/google/models/gemini-2.0-flash-exp'
+    fullPath: currentModel.fullPath,
+    
+    // 模型信息
+    description: currentModel.description,
+    maxTokens: currentModel.maxTokens
   },
 
   // API 端点构建函数

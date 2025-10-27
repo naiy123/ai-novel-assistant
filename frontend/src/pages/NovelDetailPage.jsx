@@ -34,6 +34,8 @@ function NovelDetailPage() {
   const [selectedScene, setSelectedScene] = useState(null) // 选中的背景卡
   const [targetWords, setTargetWords] = useState(1000) // 目标生成字数
   const [generating, setGenerating] = useState(false) // AI 生成状态
+  const [isContinueWriting, setIsContinueWriting] = useState(true) // 是否续写模式
+  const [useStealthMode, setUseStealthMode] = useState(false) // 是否使用反检测模式
   
   // 卡片数据
   const [characters, setCharacters] = useState([]) // 人物卡列表
@@ -45,6 +47,23 @@ function NovelDetailPage() {
   const [showCharacterModal, setShowCharacterModal] = useState(false) // 人物卡选择弹窗
   const [showItemModal, setShowItemModal] = useState(false) // 物品卡选择弹窗
   const [showSceneModal, setShowSceneModal] = useState(false) // 场景卡选择弹窗
+  
+  // 卡片展开状态（用于控制详情显示）
+  const [expandedCharacters, setExpandedCharacters] = useState([]) // 展开的人物卡ID列表
+  const [expandedItems, setExpandedItems] = useState([]) // 展开的物品卡ID列表
+  const [expandedScenes, setExpandedScenes] = useState([]) // 展开的场景卡ID列表
+  
+  // 文本选择功能状态
+  const [selectedText, setSelectedText] = useState('') // 选中的文本
+  const [selectionMenu, setSelectionMenu] = useState({ show: false, x: 0, y: 0 }) // 浮动菜单位置
+  const [showDiscussModal, setShowDiscussModal] = useState(false) // 讨论弹窗
+  const [showRewriteModal, setShowRewriteModal] = useState(false) // 修改弹窗
+  const [discussionResult, setDiscussionResult] = useState('') // AI讨论结果
+  const [rewriteInstruction, setRewriteInstruction] = useState('') // 修改指令
+  const [rewriteMode, setRewriteMode] = useState('expand') // 修改模式：expand/shrink/rewrite
+  const [rewriteTargetWords, setRewriteTargetWords] = useState(100) // 目标字数
+  const [discussing, setDiscussing] = useState(false) // 讨论中状态
+  const [rewriting, setRewriting] = useState(false) // 修改中状态
 
   // 页面加载时获取数据
   useEffect(() => {
@@ -335,6 +354,231 @@ function NovelDetailPage() {
     setSelectedScene(sceneId === selectedScene ? null : sceneId)
   }
 
+  // 切换人物卡展开状态
+  const toggleCharacterExpand = (charId) => {
+    if (expandedCharacters.includes(charId)) {
+      setExpandedCharacters(expandedCharacters.filter(id => id !== charId))
+    } else {
+      setExpandedCharacters([...expandedCharacters, charId])
+    }
+  }
+
+  // 切换物品卡展开状态
+  const toggleItemExpand = (itemId) => {
+    if (expandedItems.includes(itemId)) {
+      setExpandedItems(expandedItems.filter(id => id !== itemId))
+    } else {
+      setExpandedItems([...expandedItems, itemId])
+    }
+  }
+
+  // 切换场景卡展开状态
+  const toggleSceneExpand = (sceneId) => {
+    if (expandedScenes.includes(sceneId)) {
+      setExpandedScenes(expandedScenes.filter(id => id !== sceneId))
+    } else {
+      setExpandedScenes([...expandedScenes, sceneId])
+    }
+  }
+
+  // 处理文本选择（使用鼠标位置）
+  const handleTextSelection = (e) => {
+    // 延迟执行，确保选择已完成
+    setTimeout(() => {
+      const selection = window.getSelection()
+      const text = selection.toString().trim()
+      
+      if (text.length > 0) {
+        // 使用鼠标松开时的位置
+        const menuX = e.clientX
+        const menuY = e.clientY + 10  // 鼠标下方10px
+        
+        setSelectedText(text)
+        setSelectionMenu({
+          show: true,
+          x: menuX,
+          y: menuY
+        })
+        
+        console.log('📍 选中文本:', text.substring(0, 20) + '...')
+        console.log('📍 鼠标位置:', `x: ${e.clientX}, y: ${e.clientY}`)
+        console.log('📍 菜单位置:', `x: ${menuX}, y: ${menuY}`)
+      }
+    }, 100)
+  }
+
+  // 隐藏选择菜单
+  const hideSelectionMenu = () => {
+    setSelectionMenu({ show: false, x: 0, y: 0 })
+  }
+
+  // 处理编辑器点击（隐藏菜单，但不干扰文本选择）
+  const handleEditorClick = (e) => {
+    // 检查是否有选中文本
+    setTimeout(() => {
+      const selection = window.getSelection()
+      const text = selection.toString().trim()
+      
+      // 如果没有选中文本，隐藏菜单
+      if (text.length === 0) {
+        hideSelectionMenu()
+      }
+    }, 50)
+  }
+
+  // 打开讨论弹窗
+  const openDiscussModal = () => {
+    setShowDiscussModal(true)
+    setDiscussionResult('')
+    hideSelectionMenu()
+  }
+
+  // 打开修改弹窗
+  const openRewriteModal = () => {
+    // 重置为扩写模式
+    setRewriteMode('expand')
+    // 根据选中文本长度计算字数范围
+    const originalLength = selectedText.length
+    setRewriteTargetWords(Math.floor(originalLength * 1.5)) // 默认1.5倍
+    setRewriteInstruction('')
+    setShowRewriteModal(true)
+    hideSelectionMenu()
+  }
+
+  // 监听修改模式变化，自动调整目标字数
+  useEffect(() => {
+    if (showRewriteModal && selectedText) {
+      const range = getWordRange()
+      setRewriteTargetWords(range.default)
+    }
+  }, [rewriteMode])
+
+  // 全局点击事件：点击浮动菜单外部时隐藏菜单
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      // 如果点击的不是浮动菜单本身，隐藏菜单
+      if (selectionMenu.show && !e.target.closest('.selection-menu')) {
+        // 延迟隐藏，避免干扰选择操作
+        setTimeout(() => {
+          const selection = window.getSelection()
+          if (!selection.toString().trim()) {
+            hideSelectionMenu()
+          }
+        }, 100)
+      }
+    }
+
+    document.addEventListener('mousedown', handleGlobalClick)
+    return () => document.removeEventListener('mousedown', handleGlobalClick)
+  }, [selectionMenu.show])
+
+  // 计算字数范围
+  const getWordRange = () => {
+    const originalLength = selectedText.length
+    
+    switch (rewriteMode) {
+      case 'expand': // 扩写：最多5倍
+        return {
+          min: originalLength,
+          max: originalLength * 5,
+          default: Math.floor(originalLength * 1.5)
+        }
+      case 'shrink': // 缩写：最少10%
+        return {
+          min: Math.floor(originalLength * 0.1),
+          max: originalLength,
+          default: Math.floor(originalLength * 0.6)
+        }
+      case 'rewrite': // 改写：上下浮动10%
+        return {
+          min: Math.floor(originalLength * 0.9),
+          max: Math.floor(originalLength * 1.1),
+          default: originalLength
+        }
+      default:
+        return { min: 10, max: 1000, default: 100 }
+    }
+  }
+
+  // AI 讨论选中文本
+  const handleDiscuss = async () => {
+    if (!selectedText.trim()) {
+      alert('请先选择要讨论的文本')
+      return
+    }
+
+    try {
+      setDiscussing(true)
+      
+      const response = await fetch('/api/ai/discuss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          selectedText: selectedText,
+          novelContext: chapterContent
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        setDiscussionResult(data.discussion)
+      } else {
+        throw new Error(data.error || '讨论失败')
+      }
+    } catch (error) {
+      alert('❌ 讨论失败：' + error.message)
+    } finally {
+      setDiscussing(false)
+    }
+  }
+
+  // AI 修改选中文本
+  const handleRewrite = async () => {
+    if (!selectedText.trim()) {
+      alert('请先选择要修改的文本')
+      return
+    }
+
+    if (!rewriteInstruction.trim()) {
+      alert('请输入修改思路')
+      return
+    }
+
+    try {
+      setRewriting(true)
+      
+      const response = await fetch('/api/ai/rewrite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          originalText: selectedText,
+          instruction: rewriteInstruction,
+          mode: rewriteMode,
+          targetWords: rewriteTargetWords
+        })
+      })
+
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        // 替换选中的文本
+        const newContent = chapterContent.replace(selectedText, data.rewrittenText)
+        setChapterContent(newContent)
+        setHasUnsavedChanges(true)
+        setShowRewriteModal(false)
+        setRewriteInstruction('')
+        alert('✅ 文本已修改！')
+      } else {
+        throw new Error(data.error || '修改失败')
+      }
+    } catch (error) {
+      alert('❌ 修改失败：' + error.message)
+    } finally {
+      setRewriting(false)
+    }
+  }
+
   // 生成提示词
   const generatePrompt = () => {
     let prompt = '# AI 写作提示词\n\n'
@@ -404,13 +648,11 @@ function NovelDetailPage() {
     try {
       setGenerating(true)
 
-      // 生成提示词（用于调试）
-      const prompt = generatePrompt()
-      console.log('📄 生成的提示词：\n', prompt)
-
+      // 根据反检测模式选择不同的API端点
+      const apiEndpoint = useStealthMode ? '/api/ai/generate-stealth' : '/api/ai/generate'
+      
       // 调用后端 API
-      console.log('🚀 调用后端 AI API...')
-      const response = await fetch('/api/ai/generate', {
+      const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -420,7 +662,8 @@ function NovelDetailPage() {
           characterIds: selectedCharacters,
           itemIds: selectedItems,
           sceneId: selectedScene,
-          previousContent: chapterContent, // 将当前章节内容作为上下文
+          // 根据续写模式决定是否发送当前内容作为上下文
+          previousContent: isContinueWriting ? chapterContent : '',
           targetWords: targetWords // 使用用户选择的目标字数
         })
       })
@@ -435,15 +678,20 @@ function NovelDetailPage() {
         throw new Error(data.error || '生成失败')
       }
 
-      console.log('✅ AI 生成成功')
-      console.log('📊 Token 使用:', data.usage)
-
-      // 将生成的内容插入到编辑器
-      const newContent = chapterContent + '\n\n' + data.content.trim()
+      // 根据续写模式插入内容
+      let newContent
+      if (isContinueWriting) {
+        // 续写模式：追加到末尾
+        newContent = chapterContent + '\n\n' + data.content.trim()
+        alert('✅ AI 内容已生成并追加到编辑器末尾！')
+      } else {
+        // 独立生成模式：替换编辑器内容
+        newContent = data.content.trim()
+        alert('✅ AI 内容已生成并填入编辑器！')
+      }
+      
       setChapterContent(newContent)
       setHasUnsavedChanges(true)
-
-      alert('✅ AI 内容已生成并插入到编辑器！')
 
       // 清空表单
       setAiOutline('')
@@ -452,8 +700,6 @@ function NovelDetailPage() {
       setSelectedScene(null)
 
     } catch (error) {
-      console.error('❌ AI 生成失败:', error)
-      
       // 显示详细错误信息
       if (error.message.includes('API Key') || error.message.includes('Project ID')) {
         alert('⚠️ AI 配置错误：' + error.message + '\n\n请在 backend/.env 文件中配置 VERTEX_AI_API_KEY 和 VERTEX_AI_PROJECT_ID')
@@ -686,6 +932,8 @@ function NovelDetailPage() {
                 <textarea
                   value={chapterContent}
                   onChange={(e) => handleContentChange(e.target.value)}
+                  onMouseUp={handleTextSelection}
+                  onClick={handleEditorClick}
                   placeholder="开始写作..."
                   className="w-full h-full min-h-[600px] text-lg border-none outline-none resize-none text-gray-800 placeholder-gray-400 leading-relaxed"
                   style={{ lineHeight: '2' }}
@@ -772,6 +1020,69 @@ function NovelDetailPage() {
                 <p className="text-xs text-gray-500 mt-1">
                   AI 将生成约 {targetWords} 字的内容
                 </p>
+              </div>
+
+              {/* 生成模式选择 */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  生成模式
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsContinueWriting(true)}
+                    className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      isContinueWriting
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    📝 续写模式
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsContinueWriting(false)}
+                    className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition ${
+                      !isContinueWriting
+                        ? 'bg-purple-500 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    ✨ 独立生成
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {isContinueWriting 
+                    ? '续写：基于当前内容继续创作，内容追加到末尾' 
+                    : '独立生成：不考虑当前内容，生成全新内容并替换编辑器'}
+                </p>
+              </div>
+
+              {/* 反检测模式选项 */}
+              <div className="border-2 border-dashed border-orange-300 rounded-lg p-4 bg-orange-50">
+                <label className="flex items-start space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useStealthMode}
+                    onChange={(e) => setUseStealthMode(e.target.checked)}
+                    className="mt-0.5 w-5 h-5 rounded text-orange-600 focus:ring-orange-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-800">🛡️ 启用反检测模式</span>
+                      <span className="px-2 py-0.5 bg-orange-200 text-orange-800 text-xs rounded font-medium">实验性</span>
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">
+                      采用多轮生成策略（2次API调用）：
+                    </p>
+                    <ul className="text-xs text-gray-600 mt-1 ml-4 space-y-0.5">
+                      <li>• 第一轮：场景驱动生成初稿</li>
+                      <li>• 第二轮：风格改写（AI腔→网文腔）</li>
+                      <li>• Token消耗约为普通模式的 2 倍</li>
+                      <li>• 后端终端可查看详细生成日志</li>
+                    </ul>
+                  </div>
+                </label>
               </div>
 
               {/* 人物卡选择 */}
@@ -867,10 +1178,30 @@ function NovelDetailPage() {
               </div>
 
               {/* 提示 */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-xs text-blue-800">
-                  💡 <strong>提示：</strong>AI 会根据你选择的卡片和大纲生成符合设定的内容。卡片选择为可选项，但大纲必须填写。
+              <div className={`border rounded-lg p-3 ${
+                useStealthMode 
+                  ? 'bg-orange-50 border-orange-200' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <p className={`text-xs mb-2 ${
+                  useStealthMode ? 'text-orange-800' : 'text-blue-800'
+                }`}>
+                  {useStealthMode ? '🛡️ ' : '💡 '}
+                  <strong>
+                    {useStealthMode ? '反检测模式已启用' : '提示'}：
+                  </strong>
+                  {' '}
+                  {useStealthMode 
+                    ? '将进行2轮AI生成，查看后端终端可看到详细过程' 
+                    : 'AI 会根据你选择的卡片和大纲生成符合设定的内容'}
                 </p>
+                {!useStealthMode && (
+                  <p className="text-xs text-blue-700">
+                    • <strong>续写模式：</strong>基于当前正文内容续写，适合连贯创作<br/>
+                    • <strong>独立生成：</strong>不考虑当前正文，独立生成全新内容<br/>
+                    • 无论哪种模式，选择的卡片信息都会发送给AI作为参考
+                  </p>
+                )}
               </div>
             </div>
 
@@ -884,11 +1215,15 @@ function NovelDetailPage() {
                 {generating ? (
                   <>⏳ 生成中...</>
                 ) : (
-                  <>✨ 生成内容</>
+                  <>{isContinueWriting ? '📝 续写内容' : '✨ 生成内容'}</>
                 )}
               </button>
               <p className="text-xs text-gray-500 text-center mt-2">
-                {generating ? '正在生成，请稍候...' : '点击生成后，AI 内容会插入到编辑器末尾'}
+                {generating 
+                  ? '正在生成，请稍候...' 
+                  : isContinueWriting 
+                    ? '点击生成后，AI 内容会追加到编辑器末尾' 
+                    : '点击生成后，AI 内容会替换编辑器中的内容'}
               </p>
             </div>
           </div>
@@ -972,47 +1307,66 @@ function NovelDetailPage() {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2">
-                {characters.map(char => (
-                  <label
-                    key={char.id}
-                    className={`block p-4 rounded-lg cursor-pointer transition border-2 ${
-                      selectedCharacters.includes(char.id)
-                        ? 'bg-purple-50 border-purple-400'
-                        : 'bg-white border-gray-200 hover:border-purple-300'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedCharacters.includes(char.id)}
-                        onChange={() => toggleCharacter(char.id)}
-                        className="mt-1 rounded text-purple-600 focus:ring-purple-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-bold text-gray-800">{char.name}</h3>
-                          {char.age && <span className="text-xs text-gray-500">{char.age}岁</span>}
-                          {char.gender && <span className="text-xs text-gray-500">· {char.gender}</span>}
+                {characters.map(char => {
+                  const isExpanded = expandedCharacters.includes(char.id)
+                  return (
+                    <div
+                      key={char.id}
+                      className={`block p-4 rounded-lg transition border-2 ${
+                        selectedCharacters.includes(char.id)
+                          ? 'bg-purple-50 border-purple-400'
+                          : 'bg-white border-gray-200 hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedCharacters.includes(char.id)}
+                          onChange={() => toggleCharacter(char.id)}
+                          className="mt-1 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <h3 className="font-bold text-gray-800">{char.name}</h3>
+                              {char.age && <span className="text-xs text-gray-500">{char.age}岁</span>}
+                              {char.gender && <span className="text-xs text-gray-500">· {char.gender}</span>}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                toggleCharacterExpand(char.id)
+                              }}
+                              className="text-purple-600 hover:text-purple-700 text-sm font-medium px-2 py-1 hover:bg-purple-100 rounded transition"
+                              title={isExpanded ? '收起详情' : '展开详情'}
+                            >
+                              {isExpanded ? '收起 ▲' : '详情 ▼'}
+                            </button>
+                          </div>
+                          {isExpanded && (
+                            <div className="space-y-1 mt-2 pt-2 border-t border-purple-200">
+                              {char.personality && (
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">性格：</span>{char.personality}
+                                </p>
+                              )}
+                              {char.appearance && (
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">外貌：</span>{char.appearance}
+                                </p>
+                              )}
+                              {char.background && (
+                                <p className="text-sm text-gray-500">
+                                  <span className="font-medium">背景：</span>{char.background}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        {char.personality && (
-                          <p className="text-sm text-gray-600 mb-1">
-                            <span className="font-medium">性格：</span>{char.personality}
-                          </p>
-                        )}
-                        {char.appearance && (
-                          <p className="text-sm text-gray-600 mb-1">
-                            <span className="font-medium">外貌：</span>{char.appearance}
-                          </p>
-                        )}
-                        {char.background && (
-                          <p className="text-sm text-gray-500">
-                            <span className="font-medium">背景：</span>{char.background}
-                          </p>
-                        )}
                       </div>
                     </div>
-                  </label>
-                ))}
+                  )
+                })}
               </div>
             )}
 
@@ -1062,45 +1416,64 @@ function NovelDetailPage() {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2">
-                {items.map(item => (
-                  <label
-                    key={item.id}
-                    className={`block p-4 rounded-lg cursor-pointer transition border-2 ${
-                      selectedItems.includes(item.id)
-                        ? 'bg-green-50 border-green-400'
-                        : 'bg-white border-gray-200 hover:border-green-300'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedItems.includes(item.id)}
-                        onChange={() => toggleItem(item.id)}
-                        className="mt-1 rounded text-green-600 focus:ring-green-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-bold text-gray-800">{item.name}</h3>
-                          {item.rarity && (
-                            <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">
-                              {item.rarity}
-                            </span>
+                {items.map(item => {
+                  const isExpanded = expandedItems.includes(item.id)
+                  return (
+                    <div
+                      key={item.id}
+                      className={`block p-4 rounded-lg transition border-2 ${
+                        selectedItems.includes(item.id)
+                          ? 'bg-green-50 border-green-400'
+                          : 'bg-white border-gray-200 hover:border-green-300'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedItems.includes(item.id)}
+                          onChange={() => toggleItem(item.id)}
+                          className="mt-1 rounded text-green-600 focus:ring-green-500 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <h3 className="font-bold text-gray-800">{item.name}</h3>
+                              {item.rarity && (
+                                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded font-medium">
+                                  {item.rarity}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                toggleItemExpand(item.id)
+                              }}
+                              className="text-green-600 hover:text-green-700 text-sm font-medium px-2 py-1 hover:bg-green-100 rounded transition"
+                              title={isExpanded ? '收起详情' : '展开详情'}
+                            >
+                              {isExpanded ? '收起 ▲' : '详情 ▼'}
+                            </button>
+                          </div>
+                          {isExpanded && (
+                            <div className="space-y-1 mt-2 pt-2 border-t border-green-200">
+                              {item.description && (
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">描述：</span>{item.description}
+                                </p>
+                              )}
+                              {item.function && (
+                                <p className="text-sm text-gray-500">
+                                  <span className="font-medium">作用：</span>{item.function}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
-                        {item.description && (
-                          <p className="text-sm text-gray-600 mb-1">
-                            <span className="font-medium">描述：</span>{item.description}
-                          </p>
-                        )}
-                        {item.function && (
-                          <p className="text-sm text-gray-500">
-                            <span className="font-medium">作用：</span>{item.function}
-                          </p>
-                        )}
                       </div>
                     </div>
-                  </label>
-                ))}
+                  )
+                })}
               </div>
             )}
 
@@ -1150,44 +1523,63 @@ function NovelDetailPage() {
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto space-y-2">
-                {scenes.map(scene => (
-                  <label
-                    key={scene.id}
-                    className={`block p-4 rounded-lg cursor-pointer transition border-2 ${
-                      selectedScene === scene.id
-                        ? 'bg-indigo-50 border-indigo-400'
-                        : 'bg-white border-gray-200 hover:border-indigo-300'
-                    }`}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="radio"
-                        name="scene"
-                        checked={selectedScene === scene.id}
-                        onChange={() => selectSceneCard(scene.id)}
-                        className="mt-1 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <h3 className="font-bold text-gray-800">{scene.name}</h3>
-                          {scene.time_period && (
-                            <span className="text-xs text-gray-500">· {scene.time_period}</span>
+                {scenes.map(scene => {
+                  const isExpanded = expandedScenes.includes(scene.id)
+                  return (
+                    <div
+                      key={scene.id}
+                      className={`block p-4 rounded-lg transition border-2 ${
+                        selectedScene === scene.id
+                          ? 'bg-indigo-50 border-indigo-400'
+                          : 'bg-white border-gray-200 hover:border-indigo-300'
+                      }`}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="radio"
+                          name="scene"
+                          checked={selectedScene === scene.id}
+                          onChange={() => selectSceneCard(scene.id)}
+                          className="mt-1 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <h3 className="font-bold text-gray-800">{scene.name}</h3>
+                              {scene.time_period && (
+                                <span className="text-xs text-gray-500">· {scene.time_period}</span>
+                              )}
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault()
+                                toggleSceneExpand(scene.id)
+                              }}
+                              className="text-indigo-600 hover:text-indigo-700 text-sm font-medium px-2 py-1 hover:bg-indigo-100 rounded transition"
+                              title={isExpanded ? '收起详情' : '展开详情'}
+                            >
+                              {isExpanded ? '收起 ▲' : '详情 ▼'}
+                            </button>
+                          </div>
+                          {isExpanded && (
+                            <div className="space-y-1 mt-2 pt-2 border-t border-indigo-200">
+                              {scene.atmosphere && (
+                                <p className="text-sm text-gray-600">
+                                  <span className="font-medium">氛围：</span>{scene.atmosphere}
+                                </p>
+                              )}
+                              {scene.description && (
+                                <p className="text-sm text-gray-500">
+                                  <span className="font-medium">描述：</span>{scene.description}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
-                        {scene.atmosphere && (
-                          <p className="text-sm text-gray-600 mb-1">
-                            <span className="font-medium">氛围：</span>{scene.atmosphere}
-                          </p>
-                        )}
-                        {scene.description && (
-                          <p className="text-sm text-gray-500">
-                            <span className="font-medium">描述：</span>{scene.description}
-                          </p>
-                        )}
                       </div>
                     </div>
-                  </label>
-                ))}
+                  )
+                })}
               </div>
             )}
 
@@ -1200,6 +1592,211 @@ function NovelDetailPage() {
                 className="px-6 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg transition"
               >
                 确定
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 文本选择浮动菜单 */}
+      {selectionMenu.show && (
+        <div
+          className="selection-menu fixed z-50 bg-white rounded-lg shadow-2xl border border-gray-200 flex space-x-2 p-2"
+          style={{
+            left: `${selectionMenu.x}px`,
+            top: `${selectionMenu.y}px`,
+            transform: 'translateX(-50%)'
+          }}
+        >
+          <button
+            onClick={openDiscussModal}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition text-sm font-medium flex items-center space-x-1"
+          >
+            <span>💬</span>
+            <span>讨论</span>
+          </button>
+          <button
+            onClick={openRewriteModal}
+            className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition text-sm font-medium flex items-center space-x-1"
+          >
+            <span>✏️</span>
+            <span>修改</span>
+          </button>
+        </div>
+      )}
+
+      {/* 讨论弹窗 */}
+      {showDiscussModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">💬 AI 讨论文本</h2>
+              <button
+                onClick={() => setShowDiscussModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 选中的文本 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">选中的文本</label>
+              <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 max-h-32 overflow-y-auto">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedText}</p>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                共 {selectedText.length} 字
+              </p>
+            </div>
+
+            {/* 讨论结果 */}
+            {discussionResult && (
+              <div className="mb-4 flex-1 overflow-y-auto">
+                <label className="block text-sm font-medium text-gray-700 mb-2">AI 分析</label>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap">{discussionResult}</p>
+                </div>
+              </div>
+            )}
+
+            {/* 按钮 */}
+            <div className="flex space-x-3 pt-4 border-t">
+              <button
+                onClick={() => setShowDiscussModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                关闭
+              </button>
+              <button
+                onClick={handleDiscuss}
+                disabled={discussing}
+                className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition disabled:opacity-50"
+              >
+                {discussing ? '⏳ 讨论中...' : '🤖 开始讨论'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 修改弹窗 */}
+      {showRewriteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">✏️ AI 智能修改</h2>
+              <button
+                onClick={() => setShowRewriteModal(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* 选中的文本 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">原文</label>
+              <div className="bg-gray-50 border border-gray-300 rounded-lg p-4 max-h-32 overflow-y-auto">
+                <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedText}</p>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                原文字数：{selectedText.length} 字
+              </p>
+            </div>
+
+            {/* 修改模式选择 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">修改模式</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRewriteMode('expand')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    rewriteMode === 'expand'
+                      ? 'bg-green-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  📈 扩写
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRewriteMode('shrink')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    rewriteMode === 'shrink'
+                      ? 'bg-orange-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  📉 缩写
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRewriteMode('rewrite')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
+                    rewriteMode === 'rewrite'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  ✍️ 改写
+                </button>
+              </div>
+            </div>
+
+            {/* 目标字数滑块 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                目标字数：{rewriteTargetWords} 字
+              </label>
+              <input
+                type="range"
+                min={getWordRange().min}
+                max={getWordRange().max}
+                value={rewriteTargetWords}
+                onChange={(e) => setRewriteTargetWords(parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>最少 {getWordRange().min} 字</span>
+                <span>最多 {getWordRange().max} 字</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                {rewriteMode === 'expand' && '📈 扩写：可增加到原文的5倍'}
+                {rewriteMode === 'shrink' && '📉 缩写：最少保留原文的10%'}
+                {rewriteMode === 'rewrite' && '✍️ 改写：字数上下浮动不超过10%'}
+              </p>
+            </div>
+
+            {/* 修改指令 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                修改思路 <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={rewriteInstruction}
+                onChange={(e) => setRewriteInstruction(e.target.value)}
+                placeholder="描述你希望如何修改这段文字，例如：增加更多细节描写、简化语言、改成第一人称..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none text-sm"
+                rows="3"
+              />
+            </div>
+
+            {/* 按钮 */}
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowRewriteModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleRewrite}
+                disabled={rewriting || !rewriteInstruction.trim()}
+                className="flex-1 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition disabled:opacity-50"
+              >
+                {rewriting ? '⏳ 修改中...' : '✨ 开始修改'}
               </button>
             </div>
           </div>

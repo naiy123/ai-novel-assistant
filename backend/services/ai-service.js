@@ -601,7 +601,9 @@ export {
   callVertexAI,
   callVertexAIStream,
   callWithRetry,
-  testConnection
+  testConnection,
+  getGoogleAccessToken,
+  getProjectIdFromCredentials
 }
 
 export default {
@@ -609,6 +611,8 @@ export default {
   callVertexAI,
   callVertexAIStream,
   callWithRetry,
-  testConnection
+  testConnection,
+  getGoogleAccessToken,
+  getProjectIdFromCredentials
 }
 
